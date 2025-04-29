@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -47,7 +46,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useForm } from 'react-hook-form';
 import Papa from 'papaparse';
 
-// Define student interface based on the Supabase schema
 interface Student {
   id: number;
   name: string;
@@ -63,7 +61,6 @@ const StudentsPage: React.FC = () => {
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [csvFile, setCsvFile] = useState<File | null>(null);
   
-  // Form for adding a new student
   const form = useForm<Omit<Student, 'id'>>({
     defaultValues: {
       name: '',
@@ -73,7 +70,6 @@ const StudentsPage: React.FC = () => {
     }
   });
 
-  // Query to fetch students from Supabase
   const { data: students = [], isLoading } = useQuery({
     queryKey: ['students'],
     queryFn: async () => {
@@ -91,7 +87,6 @@ const StudentsPage: React.FC = () => {
     }
   });
 
-  // Mutation to add a student
   const addStudentMutation = useMutation({
     mutationFn: async (newStudent: Omit<Student, 'id'>) => {
       const { data, error } = await supabase
@@ -114,7 +109,6 @@ const StudentsPage: React.FC = () => {
     }
   });
 
-  // Mutation to delete a student
   const deleteStudentMutation = useMutation({
     mutationFn: async (id: number) => {
       const { error } = await supabase
@@ -135,19 +129,16 @@ const StudentsPage: React.FC = () => {
     }
   });
 
-  // Handle adding a new student
   const handleAddStudent = (values: Omit<Student, 'id'>) => {
     addStudentMutation.mutate(values);
   };
 
-  // Handle file selection for CSV upload
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       setCsvFile(e.target.files[0]);
     }
   };
 
-  // Process CSV file upload
   const handleCsvUpload = () => {
     if (!csvFile) {
       toast.error("Please select a CSV file");
@@ -188,17 +179,14 @@ const StudentsPage: React.FC = () => {
     });
   };
 
-  // Handle student deletion
   const handleDeleteStudent = (id: number) => {
     deleteStudentMutation.mutate(id);
   };
 
-  // Filter students based on search query
   const filteredStudents = students.filter(student => 
     student.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Create and download a sample CSV template
   const downloadCsvTemplate = () => {
     const header = "name,grade_id,language_id,campus_id";
     const sampleData = "John Doe,grade123,lang456,campus789\nJane Smith,grade234,lang567,campus890";
@@ -367,7 +355,6 @@ const StudentsPage: React.FC = () => {
         </div>
       </div>
       
-      {/* Search and filters */}
       <div className="flex items-center">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -380,7 +367,6 @@ const StudentsPage: React.FC = () => {
         </div>
       </div>
       
-      {/* Students Table */}
       <Card>
         <CardHeader>
           <CardTitle>All Students</CardTitle>
