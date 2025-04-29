@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { 
   Card, 
@@ -27,6 +28,14 @@ import {
   DialogTrigger
 } from '@/components/ui/dialog';
 import { 
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage 
+} from '@/components/ui/form';
+import { 
   Plus, 
   Search, 
   Download, 
@@ -34,81 +43,101 @@ import {
   Trash
 } from 'lucide-react';
 import { toast } from "sonner";
+import { supabase } from '@/integrations/supabase/client';
+import { useForm } from 'react-hook-form';
+import Papa from 'papaparse';
 
-// Define student interface
+// Define student interface based on the Supabase schema
 interface Student {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  grade: string;
-  school: string;
+  id: number;
+  name: string;
+  grade_id?: string;
+  language_id?: string;
+  campus_id?: string;
 }
 
 const StudentsPage: React.FC = () => {
-  const [students, setStudents] = useState<Student[]>([]);
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [csvFile, setCsvFile] = useState<File | null>(null);
   
-  // Form state for adding a new student
-  const [newStudent, setNewStudent] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    grade: '',
-    school: '',
+  // Form for adding a new student
+  const form = useForm<Omit<Student, 'id'>>({
+    defaultValues: {
+      name: '',
+      grade_id: '',
+      language_id: '',
+      campus_id: '',
+    }
   });
 
-  // Handle input change for new student form
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setNewStudent({
-      ...newStudent,
-      [name]: value,
-    });
-  };
+  // Query to fetch students from Supabase
+  const { data: students = [], isLoading } = useQuery({
+    queryKey: ['students'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('student')
+        .select('*');
+      
+      if (error) {
+        console.error('Error fetching students:', error);
+        toast.error("Failed to load students");
+        return [];
+      }
+
+      return data as Student[];
+    }
+  });
+
+  // Mutation to add a student
+  const addStudentMutation = useMutation({
+    mutationFn: async (newStudent: Omit<Student, 'id'>) => {
+      const { data, error } = await supabase
+        .from('student')
+        .insert([newStudent])
+        .select();
+      
+      if (error) throw error;
+      return data[0];
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['students'] });
+      setIsAddDialogOpen(false);
+      form.reset();
+      toast.success("Student added successfully");
+    },
+    onError: (error) => {
+      console.error('Error adding student:', error);
+      toast.error("Failed to add student");
+    }
+  });
+
+  // Mutation to delete a student
+  const deleteStudentMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const { error } = await supabase
+        .from('student')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+      return id;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['students'] });
+      toast.success("Student removed successfully");
+    },
+    onError: (error) => {
+      console.error('Error deleting student:', error);
+      toast.error("Failed to delete student");
+    }
+  });
 
   // Handle adding a new student
-  const handleAddStudent = () => {
-    setIsLoading(true);
-    
-    // Validate required fields
-    if (!newStudent.firstName || !newStudent.lastName || !newStudent.email) {
-      toast.error("Please fill in all required fields");
-      setIsLoading(false);
-      return;
-    }
-
-    // Simple email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(newStudent.email)) {
-      toast.error("Please enter a valid email address");
-      setIsLoading(false);
-      return;
-    }
-
-    setTimeout(() => {
-      const student: Student = {
-        id: Date.now().toString(),
-        ...newStudent,
-      };
-      
-      setStudents([...students, student]);
-      setNewStudent({
-        firstName: '',
-        lastName: '',
-        email: '',
-        grade: '',
-        school: '',
-      });
-      
-      toast.success("Student added successfully");
-      setIsAddDialogOpen(false);
-      setIsLoading(false);
-    }, 500);
+  const handleAddStudent = (values: Omit<Student, 'id'>) => {
+    addStudentMutation.mutate(values);
   };
 
   // Handle file selection for CSV upload
@@ -125,58 +154,54 @@ const StudentsPage: React.FC = () => {
       return;
     }
 
-    setIsLoading(true);
+    Papa.parse(csvFile, {
+      header: true,
+      complete: async (results) => {
+        try {
+          const students = results.data.map((row: any) => ({
+            name: row.name,
+            grade_id: row.grade_id || null,
+            language_id: row.language_id || null,
+            campus_id: row.campus_id || null,
+          }));
 
-    // Simulate processing CSV file
-    setTimeout(() => {
-      // This is where you would actually process the CSV
-      // For now, we'll just add some mock data
-      
-      const mockStudents: Student[] = [
-        {
-          id: (Date.now() + 1).toString(),
-          firstName: 'Jane',
-          lastName: 'Smith',
-          email: 'jane.smith@example.com',
-          grade: '10',
-          school: 'Lincoln High School',
-        },
-        {
-          id: (Date.now() + 2).toString(),
-          firstName: 'John',
-          lastName: 'Doe',
-          email: 'john.doe@example.com',
-          grade: '11',
-          school: 'Lincoln High School',
-        },
-      ];
-      
-      setStudents([...students, ...mockStudents]);
-      toast.success(`Successfully uploaded 2 students`);
-      setCsvFile(null);
-      setIsUploadDialogOpen(false);
-      setIsLoading(false);
-    }, 1000);
+          const { data, error } = await supabase
+            .from('student')
+            .insert(students)
+            .select();
+          
+          if (error) throw error;
+          
+          queryClient.invalidateQueries({ queryKey: ['students'] });
+          toast.success(`Successfully uploaded ${students.length} students`);
+          setCsvFile(null);
+          setIsUploadDialogOpen(false);
+        } catch (error) {
+          console.error('Error uploading students:', error);
+          toast.error("Failed to upload students");
+        }
+      },
+      error: (error) => {
+        console.error('CSV parsing error:', error);
+        toast.error("Failed to parse CSV file");
+      }
+    });
   };
 
   // Handle student deletion
-  const handleDeleteStudent = (id: string) => {
-    setStudents(students.filter(student => student.id !== id));
-    toast.success("Student removed successfully");
+  const handleDeleteStudent = (id: number) => {
+    deleteStudentMutation.mutate(id);
   };
 
   // Filter students based on search query
   const filteredStudents = students.filter(student => 
-    student.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    student.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    student.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    student.school.toLowerCase().includes(searchQuery.toLowerCase())
+    student.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   // Create and download a sample CSV template
   const downloadCsvTemplate = () => {
-    const header = "firstName,lastName,email,grade,school";
-    const sampleData = "John,Doe,john.doe@example.com,10,Lincoln High School\nJane,Smith,jane.smith@example.com,11,Washington Middle School";
+    const header = "name,grade_id,language_id,campus_id";
+    const sampleData = "John Doe,grade123,lang456,campus789\nJane Smith,grade234,lang567,campus890";
     const csvContent = `${header}\n${sampleData}`;
     
     const blob = new Blob([csvContent], { type: 'text/csv' });
@@ -224,7 +249,7 @@ const StudentsPage: React.FC = () => {
                     onChange={handleFileChange}
                   />
                   <p className="text-xs text-muted-foreground">
-                    File should have headers: firstName, lastName, email, grade, school
+                    File should have headers: name, grade_id, language_id, campus_id
                   </p>
                 </div>
                 
@@ -232,7 +257,7 @@ const StudentsPage: React.FC = () => {
                   <p className="font-medium mb-1">Need a template?</p>
                   <Button
                     variant="link"
-                    className="p-0 h-auto flex items-center gap-1 text-tutor-600"
+                    className="p-0 h-auto flex items-center gap-1 text-primary"
                     onClick={downloadCsvTemplate}
                   >
                     <Download size={14} />
@@ -267,87 +292,76 @@ const StudentsPage: React.FC = () => {
                 </DialogDescription>
               </DialogHeader>
               
-              <div className="space-y-4 py-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label htmlFor="firstName" className="text-sm font-medium">
-                      First Name <span className="text-red-500">*</span>
-                    </label>
-                    <Input
-                      id="firstName"
-                      name="firstName"
-                      value={newStudent.firstName}
-                      onChange={handleInputChange}
-                      placeholder="John"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label htmlFor="lastName" className="text-sm font-medium">
-                      Last Name <span className="text-red-500">*</span>
-                    </label>
-                    <Input
-                      id="lastName"
-                      name="lastName"
-                      value={newStudent.lastName}
-                      onChange={handleInputChange}
-                      placeholder="Doe"
-                      required
-                    />
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <label htmlFor="email" className="text-sm font-medium">
-                    Email Address <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    value={newStudent.email}
-                    onChange={handleInputChange}
-                    placeholder="john.doe@example.com"
-                    required
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(handleAddStudent)} className="space-y-4 py-4">
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Name <span className="text-red-500">*</span></FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="John Doe" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label htmlFor="grade" className="text-sm font-medium">
-                      Grade
-                    </label>
-                    <Input
-                      id="grade"
-                      name="grade"
-                      value={newStudent.grade}
-                      onChange={handleInputChange}
-                      placeholder="10"
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="grade_id"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Grade ID</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="grade123" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="language_id"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Language ID</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="lang123" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <label htmlFor="school" className="text-sm font-medium">
-                      School
-                    </label>
-                    <Input
-                      id="school"
-                      name="school"
-                      value={newStudent.school}
-                      onChange={handleInputChange}
-                      placeholder="Lincoln High School"
-                    />
-                  </div>
-                </div>
-              </div>
-              
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleAddStudent} disabled={isLoading}>
-                  {isLoading ? 'Adding...' : 'Add Student'}
-                </Button>
-              </DialogFooter>
+                  
+                  <FormField
+                    control={form.control}
+                    name="campus_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Campus ID</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="campus123" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <DialogFooter className="pt-4">
+                    <Button variant="outline" type="button" onClick={() => setIsAddDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={addStudentMutation.isPending}>
+                      {addStudentMutation.isPending ? 'Adding...' : 'Add Student'}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </Form>
             </DialogContent>
           </Dialog>
         </div>
@@ -371,12 +385,17 @@ const StudentsPage: React.FC = () => {
         <CardHeader>
           <CardTitle>All Students</CardTitle>
           <CardDescription>
-            {students.length === 0 ? 'No students added yet.' : 
+            {isLoading ? 'Loading students...' :
+              students.length === 0 ? 'No students added yet.' : 
               `Showing ${filteredStudents.length} of ${students.length} students`}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {students.length === 0 ? (
+          {isLoading ? (
+            <div className="flex justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+            </div>
+          ) : students.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 text-center">
               <div className="mb-4 rounded-full bg-gray-100 p-3">
                 <svg
@@ -424,9 +443,9 @@ const StudentsPage: React.FC = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Grade</TableHead>
-                    <TableHead>School</TableHead>
+                    <TableHead>Grade ID</TableHead>
+                    <TableHead>Language ID</TableHead>
+                    <TableHead>Campus ID</TableHead>
                     <TableHead className="w-[100px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -440,12 +459,10 @@ const StudentsPage: React.FC = () => {
                   ) : (
                     filteredStudents.map((student) => (
                       <TableRow key={student.id}>
-                        <TableCell className="font-medium">
-                          {student.firstName} {student.lastName}
-                        </TableCell>
-                        <TableCell>{student.email}</TableCell>
-                        <TableCell>{student.grade || '-'}</TableCell>
-                        <TableCell>{student.school || '-'}</TableCell>
+                        <TableCell className="font-medium">{student.name}</TableCell>
+                        <TableCell>{student.grade_id || '-'}</TableCell>
+                        <TableCell>{student.language_id || '-'}</TableCell>
+                        <TableCell>{student.campus_id || '-'}</TableCell>
                         <TableCell>
                           <Button
                             variant="ghost"
