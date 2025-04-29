@@ -60,6 +60,7 @@ const StudentsPage: React.FC = () => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [grades, setGrades] = useState<{ id: string, code: string }[]>([]);
   
   const form = useForm<Omit<Student, 'id'>>({
     defaultValues: {
@@ -86,6 +87,26 @@ const StudentsPage: React.FC = () => {
       return data as Student[];
     }
   });
+
+  const { data: gradeData = [] } = useQuery({
+    queryKey: ['grades'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('grade')
+        .select('id, code');
+      
+      if (error) {
+        console.error('Error fetching grades:', error);
+        toast.error("Failed to load grades");
+        return [];
+      }
+  
+      return data;
+    },
+    onSuccess: (data) => {
+      setGrades(data);
+    }
+  });  
 
   const addStudentMutation = useMutation({
     mutationFn: async (newStudent: Omit<Student, 'id'>) => {
@@ -302,9 +323,19 @@ const StudentsPage: React.FC = () => {
                       name="grade_id"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Grade ID</FormLabel>
+                          <FormLabel>Grade</FormLabel>
                           <FormControl>
-                            <Input {...field} placeholder="grade123" />
+                            <select
+                              {...field}
+                              className="input input-bordered w-full"
+                            >
+                              <option value="">Select a grade</option>
+                              {grades.map((grade) => (
+                                <option key={grade.id} value={grade.id}>
+                                  {grade.code}
+                                </option>
+                              ))}
+                            </select>
                           </FormControl>
                           <FormMessage />
                         </FormItem>
