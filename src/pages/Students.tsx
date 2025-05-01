@@ -128,6 +128,23 @@ const StudentsPage: React.FC = () => {
     }
   });
 
+  const { data: campusData = [] } = useQuery({
+    queryKey: ['campuses'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('campus')
+        .select('*');
+      
+      if (error) {
+        console.error('Error fetching campuses:', error);
+        toast.error("Failed to load campuses");
+        return [];
+      }
+  
+      return data;
+    }
+  });
+
   const addStudentMutation = useMutation({
     mutationFn: async (newStudent: Omit<Student, 'id'>) => {
       const { data, error } = await supabase
@@ -394,11 +411,22 @@ const StudentsPage: React.FC = () => {
                     name="campus_id"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Campus ID</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="campus123" />
-                        </FormControl>
-                        <FormMessage />
+                        <FormLabel>Campus</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select a campus" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {languageData.map((campus) => (
+                              <SelectItem key={campus.id} value={campus.id}>
+                                {campus.name}
+                              </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
                       </FormItem>
                     )}
                   />
