@@ -93,7 +93,7 @@ const StudentsPage: React.FC = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('grade')
-        .select('id, code');
+        .select('*');
       
       if (error) {
         console.error('Error fetching grades:', error);
