@@ -86,24 +86,24 @@ export type Database = {
       campus: {
         Row: {
           "address line": string | null
-          campus_id: string
           "hours bought": string | null
+          id: string
           name: string | null
           school_id: string | null
           stage_id: string | null
         }
         Insert: {
           "address line"?: string | null
-          campus_id: string
           "hours bought"?: string | null
+          id: string
           name?: string | null
           school_id?: string | null
           stage_id?: string | null
         }
         Update: {
           "address line"?: string | null
-          campus_id?: string
           "hours bought"?: string | null
+          id?: string
           name?: string | null
           school_id?: string | null
           stage_id?: string | null
@@ -333,19 +333,19 @@ export type Database = {
       grade: {
         Row: {
           code: string | null
-          grade_id: string
+          id: string
           name: string | null
           number: string | null
         }
         Insert: {
           code?: string | null
-          grade_id: string
+          id: string
           name?: string | null
           number?: string | null
         }
         Update: {
           code?: string | null
-          grade_id?: string
+          id?: string
           name?: string | null
           number?: string | null
         }
@@ -395,14 +395,14 @@ export type Database = {
             columns: ["grade_id"]
             isOneToOne: false
             referencedRelation: "grade"
-            referencedColumns: ["grade_id"]
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "groups_language_id_fkey"
             columns: ["language_id"]
             isOneToOne: false
             referencedRelation: "language"
-            referencedColumns: ["language_id"]
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "groups_program_id_fkey"
@@ -416,17 +416,17 @@ export type Database = {
       language: {
         Row: {
           code: string | null
-          language_id: string
+          id: string
           name: string | null
         }
         Insert: {
           code?: string | null
-          language_id: string
+          id: string
           name?: string | null
         }
         Update: {
           code?: string | null
-          language_id?: string
+          id?: string
           name?: string | null
         }
         Relationships: []
@@ -472,7 +472,7 @@ export type Database = {
             columns: ["campus_id"]
             isOneToOne: false
             referencedRelation: "campus"
-            referencedColumns: ["campus_id"]
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "program_cs_id_fkey"
@@ -669,21 +669,21 @@ export type Database = {
             columns: ["campus_id"]
             isOneToOne: false
             referencedRelation: "campus"
-            referencedColumns: ["campus_id"]
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "student_duplicate_grade_id_fkey"
             columns: ["grade_id"]
             isOneToOne: false
             referencedRelation: "grade"
-            referencedColumns: ["grade_id"]
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "student_duplicate_language_id_fkey"
             columns: ["language_id"]
             isOneToOne: false
             referencedRelation: "language"
-            referencedColumns: ["language_id"]
+            referencedColumns: ["id"]
           },
         ]
       }

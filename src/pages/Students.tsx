@@ -40,13 +40,14 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
-} from "@/components/ui/select"; // or whatever your path is
+} from "@/components/ui/select";
 import { 
   Plus, 
   Search, 
   Download, 
   Upload,
-  Trash
+  Trash,
+  Pencil
 } from 'lucide-react';
 import { toast } from "sonner";
 import { supabase } from '@/integrations/supabase/client';
@@ -65,11 +66,23 @@ const StudentsPage: React.FC = () => {
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [currentStudent, setCurrentStudent] = useState<Student | null>(null);
   
-  const form = useForm<Omit<Student, 'id'>>({
+  const addForm = useForm<Omit<Student, 'id'>>({
     defaultValues: {
+      name: '',
+      grade_id: '',
+      language_id: '',
+      campus_id: '',
+    }
+  });
+
+  const editForm = useForm<Student>({
+    defaultValues: {
+      id: '',
       name: '',
       grade_id: '',
       language_id: '',
@@ -149,7 +162,6 @@ const StudentsPage: React.FC = () => {
   const languageMap = Object.fromEntries(languageData.map(l => [l.id, l.name]));
   const campusMap = Object.fromEntries(campusData.map(c => [c.id, c.name]));
 
-
   const addStudentMutation = useMutation({
     mutationFn: async (newStudent: Omit<Student, 'id'>) => {
       const { data, error } = await supabase
@@ -163,12 +175,37 @@ const StudentsPage: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['students'] });
       setIsAddDialogOpen(false);
-      form.reset();
+      addForm.reset();
       toast.success("Student added successfully");
     },
     onError: (error) => {
       console.error('Error adding student:', error);
       toast.error("Failed to add student");
+    }
+  });
+
+  const updateStudentMutation = useMutation({
+    mutationFn: async (updatedStudent: Student) => {
+      const { id, ...studentData } = updatedStudent;
+      const { data, error } = await supabase
+        .from('student')
+        .update(studentData)
+        .eq('id', id)
+        .select();
+      
+      if (error) throw error;
+      return data[0];
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['students'] });
+      setIsEditDialogOpen(false);
+      setCurrentStudent(null);
+      editForm.reset();
+      toast.success("Student updated successfully");
+    },
+    onError: (error) => {
+      console.error('Error updating student:', error);
+      toast.error("Failed to update student");
     }
   });
 
@@ -185,7 +222,7 @@ const StudentsPage: React.FC = () => {
         throw error;
       }
   
-      console.log('Supabase delete result:', data); // should be at least one record
+      console.log('Supabase delete result:', data);
       return id;
     },
     onSuccess: () => {
@@ -200,6 +237,22 @@ const StudentsPage: React.FC = () => {
 
   const handleAddStudent = (values: Omit<Student, 'id'>) => {
     addStudentMutation.mutate(values);
+  };
+
+  const handleEditStudent = (student: Student) => {
+    setCurrentStudent(student);
+    editForm.reset({
+      id: student.id,
+      name: student.name,
+      grade_id: student.grade_id || '',
+      language_id: student.language_id || '',
+      campus_id: student.campus_id || ''
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdateStudent = (values: Student) => {
+    updateStudentMutation.mutate(values);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -350,10 +403,10 @@ const StudentsPage: React.FC = () => {
                 </DialogDescription>
               </DialogHeader>
               
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(handleAddStudent)} className="space-y-4 py-4">
+              <Form {...addForm}>
+                <form onSubmit={addForm.handleSubmit(handleAddStudent)} className="space-y-4 py-4">
                   <FormField
-                    control={form.control}
+                    control={addForm.control}
                     name="name"
                     render={({ field }) => (
                       <FormItem>
@@ -368,7 +421,7 @@ const StudentsPage: React.FC = () => {
                   
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
-                      control={form.control}
+                      control={addForm.control}
                       name="grade_id"
                       render={({ field }) => (
                         <FormItem>
@@ -393,7 +446,7 @@ const StudentsPage: React.FC = () => {
                     />
 
                     <FormField
-                      control={form.control}
+                      control={addForm.control}
                       name="language_id"
                       render={({ field }) => (
                         <FormItem>
@@ -419,7 +472,7 @@ const StudentsPage: React.FC = () => {
                   </div>
                   
                   <FormField
-                    control={form.control}
+                    control={addForm.control}
                     name="campus_id"
                     render={({ field }) => (
                       <FormItem>
@@ -449,6 +502,130 @@ const StudentsPage: React.FC = () => {
                     </Button>
                     <Button type="submit" disabled={addStudentMutation.isPending}>
                       {addStudentMutation.isPending ? 'Adding...' : 'Add Student'}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
+
+          {/* Edit Student Dialog */}
+          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Edit Student</DialogTitle>
+                <DialogDescription>
+                  Update student information.
+                </DialogDescription>
+              </DialogHeader>
+              
+              <Form {...editForm}>
+                <form onSubmit={editForm.handleSubmit(handleUpdateStudent)} className="space-y-4 py-4">
+                  <FormField
+                    control={editForm.control}
+                    name="id"
+                    render={({ field }) => (
+                      <input type="hidden" {...field} />
+                    )}
+                  />
+
+                  <FormField
+                    control={editForm.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Name <span className="text-red-500">*</span></FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="John Doe" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={editForm.control}
+                      name="grade_id"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Grade</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value || ""}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select a grade" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {gradeData.map((grade) => (
+                                <SelectItem key={grade.id} value={grade.id}>
+                                  {grade.code}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={editForm.control}
+                      name="language_id"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Language</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value || ""}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select a language" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {languageData.map((language) => (
+                                <SelectItem key={language.id} value={language.id}>
+                                  {language.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  
+                  <FormField
+                    control={editForm.control}
+                    name="campus_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Campus</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value || ""}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select a campus" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {campusData.map((campus) => (
+                              <SelectItem key={campus.id} value={campus.id}>
+                                {campus.name}
+                              </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <DialogFooter className="pt-4">
+                    <Button variant="outline" type="button" onClick={() => setIsEditDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={updateStudentMutation.isPending}>
+                      {updateStudentMutation.isPending ? 'Updating...' : 'Update Student'}
                     </Button>
                   </DialogFooter>
                 </form>
@@ -535,7 +712,7 @@ const StudentsPage: React.FC = () => {
                     <TableHead>Grade</TableHead>
                     <TableHead>Language</TableHead>
                     <TableHead>Campus</TableHead>
-                    <TableHead className="w-[100px]">Actions</TableHead>
+                    <TableHead className="w-[140px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -553,13 +730,22 @@ const StudentsPage: React.FC = () => {
                         <TableCell>{languageMap[student.language_id!] || '-'}</TableCell>
                         <TableCell>{campusMap[student.campus_id!] || '-'}</TableCell>
                         <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDeleteStudent(student.id)}
-                          >
-                            <Trash className="h-4 w-4" />
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleEditStudent(student)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteStudent(student.id)}
+                            >
+                              <Trash className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))
