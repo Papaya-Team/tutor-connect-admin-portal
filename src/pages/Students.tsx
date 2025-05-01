@@ -145,6 +145,11 @@ const StudentsPage: React.FC = () => {
     }
   });
 
+  const gradeMap = Object.fromEntries(gradeData.map(g => [g.id, g.code]));
+  const languageMap = Object.fromEntries(languageData.map(l => [l.id, l.code]));
+  const campusMap = Object.fromEntries(campusData.map(c => [c.id, c.name]));
+
+
   const addStudentMutation = useMutation({
     mutationFn: async (newStudent: Omit<Student, 'id'>) => {
       const { data, error } = await supabase
@@ -395,7 +400,7 @@ const StudentsPage: React.FC = () => {
                             <SelectContent>
                               {languageData.map((language) => (
                                 <SelectItem key={language.id} value={language.id}>
-                                  {language.code}
+                                  {language.name}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -537,9 +542,9 @@ const StudentsPage: React.FC = () => {
                     filteredStudents.map((student) => (
                       <TableRow key={student.id}>
                         <TableCell className="font-medium">{student.name}</TableCell>
-                        <TableCell>{student.grade_id || '-'}</TableCell>
-                        <TableCell>{student.language_id || '-'}</TableCell>
-                        <TableCell>{student.campus_id || '-'}</TableCell>
+                        <TableCell>{gradeMap[student.grade_id!] || '-'}</TableCell>
+                        <TableCell>{languageMap[student.language_id!] || '-'}</TableCell>
+                        <TableCell>{campusMap[student.campus_id!] || '-'}</TableCell>
                         <TableCell>
                           <Button
                             variant="ghost"
