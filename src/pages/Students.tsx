@@ -332,7 +332,7 @@ const StudentsPage: React.FC = () => {
                               className="input input-bordered w-full"
                             >
                               <option value="">Select a grade</option>
-                              {grades.map((grade) => (
+                              {gradeData.map((grade) => (
                                 <option key={grade.id} value={grade.id}>
                                   {grade.code}
                                 </option>
