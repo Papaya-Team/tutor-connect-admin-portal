@@ -419,7 +419,7 @@ const StudentsPage: React.FC = () => {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              {languageData.map((campus) => (
+                              {campusData.map((campus) => (
                               <SelectItem key={campus.id} value={campus.id}>
                                 {campus.name}
                               </SelectItem>
