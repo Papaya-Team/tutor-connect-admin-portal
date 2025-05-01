@@ -177,7 +177,8 @@ const StudentsPage: React.FC = () => {
       const { error, data } = await supabase
         .from('student')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .select();
   
       if (error) {
         console.error('Supabase error:', error);
@@ -249,7 +250,7 @@ const StudentsPage: React.FC = () => {
 
   const handleDeleteStudent = (id: number) => {
     console.log("Deleting student with ID:", id);
-    deleteStudentMutation.mutate(id);
+    deleteStudentMutation.mutate(Number(id));
   };
 
   const filteredStudents = students.filter(student => 
