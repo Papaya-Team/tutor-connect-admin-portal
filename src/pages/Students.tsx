@@ -34,6 +34,13 @@ import {
   FormLabel,
   FormMessage 
 } from '@/components/ui/form';
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select"; // or whatever your path is
 import { 
   Plus, 
   Search, 
@@ -322,18 +329,20 @@ const StudentsPage: React.FC = () => {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Grade</FormLabel>
-                          <FormControl>
-                            <select
-                              {...field}
-                            >
-                              <option value="">Select a grade</option>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select a grade" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
                               {gradeData.map((grade) => (
-                                <option key={grade.id} value={grade.id}>
+                                <SelectItem key={grade.id} value={grade.id}>
                                   {grade.code}
-                                </option>
+                                </SelectItem>
                               ))}
-                            </select>
-                          </FormControl>
+                            </SelectContent>
+                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}
