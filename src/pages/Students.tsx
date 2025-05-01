@@ -243,6 +243,7 @@ const StudentsPage: React.FC = () => {
   };
 
   const handleDeleteStudent = (id: number) => {
+    console.log("Deleting student with ID:", id);
     deleteStudentMutation.mutate(id);
   };
 
