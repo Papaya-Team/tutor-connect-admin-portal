@@ -128,8 +128,6 @@ const StudentsPage: React.FC = () => {
     }
   });
 
-  console.log('gradeData:', gradeData);
-
   const addStudentMutation = useMutation({
     mutationFn: async (newStudent: Omit<Student, 'id'>) => {
       const { data, error } = await supabase
@@ -378,7 +376,7 @@ const StudentsPage: React.FC = () => {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              {gradeData.map((language) => (
+                              {languageData.map((language) => (
                                 <SelectItem key={language.id} value={language.id}>
                                   {language.code}
                                 </SelectItem>
