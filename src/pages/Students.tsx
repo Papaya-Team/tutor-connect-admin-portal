@@ -190,7 +190,7 @@ const StudentsPage: React.FC = () => {
       const { data, error } = await supabase
         .from('student')
         .update(studentData)
-        .eq('id', id)
+        .eq('id', Number(id))
         .select();
       
       if (error) throw error;
@@ -214,7 +214,7 @@ const StudentsPage: React.FC = () => {
       const { error, data } = await supabase
         .from('student')
         .delete()
-        .eq('id', id)
+        .eq('id', Number(id))
         .select();
   
       if (error) {
