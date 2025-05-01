@@ -146,7 +146,7 @@ const StudentsPage: React.FC = () => {
   });
 
   const gradeMap = Object.fromEntries(gradeData.map(g => [g.id, g.code]));
-  const languageMap = Object.fromEntries(languageData.map(l => [l.id, l.code]));
+  const languageMap = Object.fromEntries(languageData.map(l => [l.id, l.name]));
   const campusMap = Object.fromEntries(campusData.map(c => [c.id, c.name]));
 
 
