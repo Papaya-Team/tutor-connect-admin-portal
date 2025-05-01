@@ -525,9 +525,9 @@ const StudentsPage: React.FC = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
-                    <TableHead>Grade ID</TableHead>
-                    <TableHead>Language ID</TableHead>
-                    <TableHead>Campus ID</TableHead>
+                    <TableHead>Grade</TableHead>
+                    <TableHead>Language</TableHead>
+                    <TableHead>Campus</TableHead>
                     <TableHead className="w-[100px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
