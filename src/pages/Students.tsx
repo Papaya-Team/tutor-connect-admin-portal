@@ -112,7 +112,7 @@ const StudentsPage: React.FC = () => {
   });
 
   const { data: languageData = [] } = useQuery({
-    queryKey: ['language'],
+    queryKey: ['languages'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('language')
