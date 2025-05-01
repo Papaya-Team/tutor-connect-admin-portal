@@ -106,7 +106,9 @@ const StudentsPage: React.FC = () => {
     onSuccess: (data) => {
       setGrades(data);
     }
-  });  
+  });
+
+  console.log('gradeData:', gradeData);
 
   const addStudentMutation = useMutation({
     mutationFn: async (newStudent: Omit<Student, 'id'>) => {
