@@ -60,7 +60,6 @@ const StudentsPage: React.FC = () => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [csvFile, setCsvFile] = useState<File | null>(null);
-  const [grades, setGrades] = useState<{ id: string, code: string }[]>([]);
   
   const form = useForm<Omit<Student, 'id'>>({
     defaultValues: {
@@ -102,9 +101,6 @@ const StudentsPage: React.FC = () => {
       }
   
       return data;
-    },
-    onSuccess: (data) => {
-      setGrades(data);
     }
   });
 
