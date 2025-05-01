@@ -54,7 +54,7 @@ import { useForm } from 'react-hook-form';
 import Papa from 'papaparse';
 
 interface Student {
-  id: number;
+  id: number | string;
   name: string;
   grade_id?: string;
   language_id?: string;
