@@ -325,7 +325,6 @@ const StudentsPage: React.FC = () => {
                           <FormControl>
                             <select
                               {...field}
-                              className="input input-bordered w-full"
                             >
                               <option value="">Select a grade</option>
                               {gradeData.map((grade) => (
