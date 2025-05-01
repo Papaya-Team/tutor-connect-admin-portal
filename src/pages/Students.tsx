@@ -111,6 +111,23 @@ const StudentsPage: React.FC = () => {
     }
   });
 
+  const { data: languageData = [] } = useQuery({
+    queryKey: ['language'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('language')
+        .select('*');
+      
+      if (error) {
+        console.error('Error fetching languages:', error);
+        toast.error("Failed to load languages");
+        return [];
+      }
+  
+      return data;
+    }
+  });
+
   console.log('gradeData:', gradeData);
 
   const addStudentMutation = useMutation({
@@ -347,16 +364,27 @@ const StudentsPage: React.FC = () => {
                         </FormItem>
                       )}
                     />
-                    
+
                     <FormField
                       control={form.control}
                       name="language_id"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Language ID</FormLabel>
-                          <FormControl>
-                            <Input {...field} placeholder="lang123" />
-                          </FormControl>
+                          <FormLabel>Language</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select a language" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {gradeData.map((language) => (
+                                <SelectItem key={language.id} value={language.id}>
+                                  {language.code}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}
