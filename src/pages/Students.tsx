@@ -174,12 +174,17 @@ const StudentsPage: React.FC = () => {
 
   const deleteStudentMutation = useMutation({
     mutationFn: async (id: number) => {
-      const { error } = await supabase
+      const { error, data } = await supabase
         .from('student')
         .delete()
         .eq('id', id);
-      
-      if (error) throw error;
+  
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+  
+      console.log('Supabase delete result:', data); // should be at least one record
       return id;
     },
     onSuccess: () => {
@@ -190,7 +195,7 @@ const StudentsPage: React.FC = () => {
       console.error('Error deleting student:', error);
       toast.error("Failed to delete student");
     }
-  });
+  });  
 
   const handleAddStudent = (values: Omit<Student, 'id'>) => {
     addStudentMutation.mutate(values);
