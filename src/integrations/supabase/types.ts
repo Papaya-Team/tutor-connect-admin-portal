@@ -644,7 +644,6 @@ export type Database = {
       student: {
         Row: {
           campus_id: string | null
-          email: string | null
           grade_id: string | null
           id: number
           language_id: string | null
@@ -652,7 +651,6 @@ export type Database = {
         }
         Insert: {
           campus_id?: string | null
-          email?: string | null
           grade_id?: string | null
           id?: number
           language_id?: string | null
@@ -660,7 +658,6 @@ export type Database = {
         }
         Update: {
           campus_id?: string | null
-          email?: string | null
           grade_id?: string | null
           id?: number
           language_id?: string | null
