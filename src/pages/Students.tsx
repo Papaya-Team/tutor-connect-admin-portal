@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -8,69 +9,30 @@ import {
   CardHeader, 
   CardTitle 
 } from '@/components/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Input } from '@/components/ui/input';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogFooter,
-  DialogTrigger
-} from '@/components/ui/dialog';
-import { 
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage 
-} from '@/components/ui/form';
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
-import { 
-  Plus, 
-  Search, 
-  Download, 
-  Upload,
-  Trash,
-  Pencil
-} from 'lucide-react';
+import { Plus, Upload } from 'lucide-react';
 import { toast } from "sonner";
 import { supabase } from '@/integrations/supabase/client';
 import { useForm } from 'react-hook-form';
 import Papa from 'papaparse';
-
-interface Student {
-  id: number | string;
-  name: string;
-  email: string;
-  grade_id?: string;
-  language_id?: string;
-  campus_id?: string;
-}
+import { Student } from '@/types/student';
+import { useSort } from '@/hooks/useSort';
+import StudentTable from '@/components/students/StudentTable';
+import EmptyStudentState from '@/components/students/EmptyStudentState';
+import StudentFilters from '@/components/students/StudentFilters';
+import StudentFormDialog from '@/components/students/StudentFormDialog';
+import UploadCsvDialog from '@/components/students/UploadCsvDialog';
 
 const StudentsPage: React.FC = () => {
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
+  const [gradeFilter, setGradeFilter] = useState('');
+  const [languageFilter, setLanguageFilter] = useState('');
+  const [campusFilter, setCampusFilter] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
-  const [csvFile, setCsvFile] = useState<File | null>(null);
-  const [currentStudent, setCurrentStudent] = useState<Student | null>(null);
+  
+  const { sortConfig, requestSort, sortedItems } = useSort<Student>('name', 'asc');
   
   const addForm = useForm<Omit<Student, 'id'>>({
     defaultValues: {
@@ -192,27 +154,19 @@ const StudentsPage: React.FC = () => {
   const updateStudentMutation = useMutation({
     mutationFn: async (updatedStudent: Student) => {
       const { id, ...studentData } = updatedStudent;
-      console.log("🚨 Updating student:", updatedStudent);
-      console.log("📌 Updating ID:", id, typeof id);
-
+      
       const { data, error } = await supabase
         .from('student')
         .update(studentData)
         .eq('id', Number(id))
         .select();
       
-      if (error) {
-        console.error("❌ Supabase error:", error);
-        throw error;
-      }
-
-      console.log("✅ Updated student data:", data);
+      if (error) throw error;
       return data[0];
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['students'] });
       setIsEditDialogOpen(false);
-      setCurrentStudent(null);
       editForm.reset();
       toast.success("Student updated successfully");
     },
@@ -224,18 +178,12 @@ const StudentsPage: React.FC = () => {
 
   const deleteStudentMutation = useMutation({
     mutationFn: async (id: number) => {
-      const { error, data } = await supabase
+      const { error } = await supabase
         .from('student')
         .delete()
-        .eq('id', Number(id))
-        .select();
+        .eq('id', id);
   
-      if (error) {
-        console.error('Supabase error:', error);
-        throw error;
-      }
-  
-      console.log('Supabase delete result:', data);
+      if (error) throw error;
       return id;
     },
     onSuccess: () => {
@@ -253,11 +201,10 @@ const StudentsPage: React.FC = () => {
   };
 
   const handleEditStudent = (student: Student) => {
-    setCurrentStudent(student);
     editForm.reset({
       id: student.id,
       name: student.name,
-      email: student.email,
+      email: student.email || '',
       grade_id: student.grade_id || '',
       language_id: student.language_id || '',
       campus_id: student.campus_id || ''
@@ -269,18 +216,7 @@ const StudentsPage: React.FC = () => {
     updateStudentMutation.mutate(values);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setCsvFile(e.target.files[0]);
-    }
-  };
-
-  const handleCsvUpload = () => {
-    if (!csvFile) {
-      toast.error("Please select a CSV file");
-      return;
-    }
-
+  const handleCsvUpload = (csvFile: File) => {
     Papa.parse(csvFile, {
       header: true,
       complete: async (results) => {
@@ -293,16 +229,14 @@ const StudentsPage: React.FC = () => {
             campus_id: row.campus_id || null,
           }));
 
-          const { data, error } = await supabase
+          const { error } = await supabase
             .from('student')
-            .insert(students)
-            .select();
+            .insert(students);
           
           if (error) throw error;
           
           queryClient.invalidateQueries({ queryKey: ['students'] });
           toast.success(`Successfully uploaded ${students.length} students`);
-          setCsvFile(null);
           setIsUploadDialogOpen(false);
         } catch (error) {
           console.error('Error uploading students:', error);
@@ -317,13 +251,8 @@ const StudentsPage: React.FC = () => {
   };
 
   const handleDeleteStudent = (id: number) => {
-    console.log("Deleting student with ID:", id);
-    deleteStudentMutation.mutate(Number(id));
+    deleteStudentMutation.mutate(id);
   };
-
-  const filteredStudents = students.filter(student => 
-    student.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
   const downloadCsvTemplate = () => {
     const header = "name,email,grade_id,language_id,campus_id";
@@ -343,6 +272,22 @@ const StudentsPage: React.FC = () => {
     toast.success("Template downloaded successfully");
   };
 
+  // Apply filters to students
+  const filteredStudents = students.filter(student => {
+    const matchesSearch = 
+      student.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      student.email?.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesGrade = !gradeFilter || student.grade_id === gradeFilter;
+    const matchesLanguage = !languageFilter || student.language_id === languageFilter;
+    const matchesCampus = !campusFilter || student.campus_id === campusFilter;
+    
+    return matchesSearch && matchesGrade && matchesLanguage && matchesCampus;
+  });
+
+  // Sort filtered students
+  const sortedStudents = sortedItems(filteredStudents);
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -351,351 +296,31 @@ const StudentsPage: React.FC = () => {
           <p className="text-muted-foreground">Manage students in your tutoring program</p>
         </div>
         <div className="flex gap-2">
-          <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="gap-1">
-                <Upload size={16} />
-                Import CSV
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Upload Students CSV</DialogTitle>
-                <DialogDescription>
-                  Upload a CSV file with student information to add multiple students at once.
-                </DialogDescription>
-              </DialogHeader>
-              
-              <div className="space-y-4 py-4">
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium">CSV File</label>
-                  <Input 
-                    type="file" 
-                    accept=".csv" 
-                    onChange={handleFileChange}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    File should have headers: name, grade_id, language_id, campus_id
-                  </p>
-                </div>
-                
-                <div className="text-sm">
-                  <p className="font-medium mb-1">Need a template?</p>
-                  <Button
-                    variant="link"
-                    className="p-0 h-auto flex items-center gap-1 text-primary"
-                    onClick={downloadCsvTemplate}
-                  >
-                    <Download size={14} />
-                    Download CSV Template
-                  </Button>
-                </div>
-              </div>
-              
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsUploadDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleCsvUpload} disabled={!csvFile || isLoading}>
-                  {isLoading ? 'Uploading...' : 'Upload'}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <Button variant="outline" className="gap-1" onClick={() => setIsUploadDialogOpen(true)}>
+            <Upload size={16} />
+            Import CSV
+          </Button>
           
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-1">
-                <Plus size={16} />
-                Add Student
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add New Student</DialogTitle>
-                <DialogDescription>
-                  Enter the details to add a new student to the system.
-                </DialogDescription>
-              </DialogHeader>
-              
-              <Form {...addForm}>
-                <form onSubmit={addForm.handleSubmit(handleAddStudent)} className="space-y-4 py-4">
-                  <FormField
-                    control={addForm.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Name <span className="text-red-500">*</span></FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="John Doe" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={addForm.control}
-                    name="email"
-                    rules={{
-                      required: "Email is required",
-                      pattern: {
-                        value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                        message: "Invalid email format"
-                      }
-                    }}
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email <span className="text-red-500">*</span></FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="example@email.com" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={addForm.control}
-                      name="grade_id"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Grade</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select a grade" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {gradeData.map((grade) => (
-                                <SelectItem key={grade.id} value={grade.id}>
-                                  {grade.code}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={addForm.control}
-                      name="language_id"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Language</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select a language" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {languageData.map((language) => (
-                                <SelectItem key={language.id} value={language.id}>
-                                  {language.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  
-                  <FormField
-                    control={addForm.control}
-                    name="campus_id"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Campus</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select a campus" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {campusData.map((campus) => (
-                              <SelectItem key={campus.id} value={campus.id}>
-                                {campus.name}
-                              </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <DialogFooter className="pt-4">
-                    <Button variant="outline" type="button" onClick={() => setIsAddDialogOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button type="submit" disabled={addStudentMutation.isPending}>
-                      {addStudentMutation.isPending ? 'Adding...' : 'Add Student'}
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </Form>
-            </DialogContent>
-          </Dialog>
-
-          {/* Edit Student Dialog */}
-          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Edit Student</DialogTitle>
-                <DialogDescription>
-                  Update student information.
-                </DialogDescription>
-              </DialogHeader>
-              
-              <Form {...editForm}>
-                <form onSubmit={editForm.handleSubmit(handleUpdateStudent)} className="space-y-4 py-4">
-                  <FormField
-                    control={editForm.control}
-                    name="id"
-                    render={({ field }) => (
-                      <input type="hidden" {...field} value={field.value ?? ''} />
-                    )}
-                  />
-
-                  <FormField
-                    control={editForm.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Name <span className="text-red-500">*</span></FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="John Doe" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={editForm.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email <span className="text-red-500">*</span></FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="example@email.com" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={editForm.control}
-                      name="grade_id"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Grade</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value || ""}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select a grade" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {gradeData.map((grade) => (
-                                <SelectItem key={grade.id} value={grade.id}>
-                                  {grade.code}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={editForm.control}
-                      name="language_id"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Language</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value || ""}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select a language" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {languageData.map((language) => (
-                                <SelectItem key={language.id} value={language.id}>
-                                  {language.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  
-                  <FormField
-                    control={editForm.control}
-                    name="campus_id"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Campus</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value || ""}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select a campus" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {campusData.map((campus) => (
-                              <SelectItem key={campus.id} value={campus.id}>
-                                {campus.name}
-                              </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <DialogFooter className="pt-4">
-                    <Button variant="outline" type="button" onClick={() => setIsEditDialogOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button type="submit" disabled={updateStudentMutation.isPending}>
-                      {updateStudentMutation.isPending ? 'Updating...' : 'Update Student'}
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </Form>
-            </DialogContent>
-          </Dialog>
+          <Button className="gap-1" onClick={() => setIsAddDialogOpen(true)}>
+            <Plus size={16} />
+            Add Student
+          </Button>
         </div>
       </div>
       
-      <div className="flex items-center">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search students..."
-            className="pl-8"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-      </div>
+      <StudentFilters
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        gradeFilter={gradeFilter}
+        onGradeFilterChange={setGradeFilter}
+        languageFilter={languageFilter}
+        onLanguageFilterChange={setLanguageFilter}
+        campusFilter={campusFilter}
+        onCampusFilterChange={setCampusFilter}
+        grades={gradeData}
+        languages={languageData}
+        campuses={campusData}
+      />
       
       <Card>
         <CardHeader>
@@ -703,7 +328,7 @@ const StudentsPage: React.FC = () => {
           <CardDescription>
             {isLoading ? 'Loading students...' :
               students.length === 0 ? 'No students added yet.' : 
-              `Showing ${filteredStudents.length} of ${students.length} students`}
+              `Showing ${sortedStudents.length} of ${students.length} students`}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -712,102 +337,64 @@ const StudentsPage: React.FC = () => {
               <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
             </div>
           ) : students.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-              <div className="mb-4 rounded-full bg-gray-100 p-3">
-                <svg
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-6 w-6 text-gray-400"
-                >
-                  <path
-                    d="M15 19C15 16.7909 12.3137 15 9 15C5.68629 15 3 16.7909 3 19M9 12C6.79086 12 5 10.2091 5 8C5 5.79086 6.79086 4 9 4C11.2091 4 13 5.79086 13 8C13 10.2091 11.2091 12 9 12ZM21 19C21 16.7909 18.7614 15 16 15C13.2386 15 11 16.7909 11 19M17 8C17 10.2091 15.2091 12 13 12C12.3255 12 11.6873 11.8458 11.1279 11.5651C11.7025 10.5626 12 9.3288 12 8C12 6.67121 11.7025 5.43737 11.1279 4.43491C11.6873 4.15421 12.3255 4 13 4C15.2091 4 17 5.79086 17 8Z"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  ></path>
-                </svg>
-              </div>
-              <p className="text-lg font-medium">No students found</p>
-              <p className="text-sm text-muted-foreground mb-4">
-                Get started by adding your first student
-              </p>
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  className="gap-1"
-                  onClick={() => setIsUploadDialogOpen(true)}
-                >
-                  <Upload size={16} />
-                  Import CSV
-                </Button>
-                <Button
-                  className="gap-1"
-                  onClick={() => setIsAddDialogOpen(true)}
-                >
-                  <Plus size={16} />
-                  Add Student
-                </Button>
-              </div>
-            </div>
+            <EmptyStudentState
+              onAddClick={() => setIsAddDialogOpen(true)}
+              onImportClick={() => setIsUploadDialogOpen(true)}
+            />
           ) : (
-            <div className="border rounded-md">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Grade</TableHead>
-                    <TableHead>Language</TableHead>
-                    <TableHead>Campus</TableHead>
-                    <TableHead className="w-[140px]">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredStudents.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center h-24">
-                        No students matching your search
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredStudents.map((student) => (
-                      <TableRow key={student.id}>
-                        <TableCell className="font-medium">{student.name}</TableCell>
-                        <TableCell className="font-medium">{student.email}</TableCell>
-                        <TableCell>{gradeMap[student.grade_id!] || '-'}</TableCell>
-                        <TableCell>{languageMap[student.language_id!] || '-'}</TableCell>
-                        <TableCell>{campusMap[student.campus_id!] || '-'}</TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleEditStudent(student)}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDeleteStudent(student.id)}
-                            >
-                              <Trash className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+            <StudentTable
+              students={sortedStudents}
+              isLoading={isLoading}
+              gradeMap={gradeMap}
+              languageMap={languageMap}
+              campusMap={campusMap}
+              onEdit={handleEditStudent}
+              onDelete={handleDeleteStudent}
+              sortConfig={sortConfig}
+              onSort={requestSort}
+            />
           )}
         </CardContent>
       </Card>
+      
+      {/* Add Student Dialog */}
+      <StudentFormDialog
+        isOpen={isAddDialogOpen}
+        onOpenChange={setIsAddDialogOpen}
+        title="Add New Student"
+        description="Enter the details to add a new student to the system."
+        form={addForm}
+        onSubmit={handleAddStudent}
+        buttonText="Add Student"
+        isSubmitting={addStudentMutation.isPending}
+        gradeData={gradeData}
+        languageData={languageData}
+        campusData={campusData}
+      />
+      
+      {/* Edit Student Dialog */}
+      <StudentFormDialog
+        isOpen={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        title="Edit Student"
+        description="Update student information."
+        form={editForm}
+        onSubmit={handleUpdateStudent}
+        buttonText="Update Student"
+        isSubmitting={updateStudentMutation.isPending}
+        gradeData={gradeData}
+        languageData={languageData}
+        campusData={campusData}
+      />
+      
+      {/* Upload CSV Dialog */}
+      <UploadCsvDialog
+        isOpen={isUploadDialogOpen}
+        onOpenChange={setIsUploadDialogOpen}
+        onUpload={handleCsvUpload}
+        onDownloadTemplate={downloadCsvTemplate}
+        isUploading={false}
+      />
     </div>
   );
 };
