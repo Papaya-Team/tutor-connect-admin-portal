@@ -57,6 +57,7 @@ import Papa from 'papaparse';
 interface Student {
   id: number | string;
   name: string;
+  email: string;
   grade_id?: string;
   language_id?: string;
   campus_id?: string;
@@ -74,20 +75,24 @@ const StudentsPage: React.FC = () => {
   const addForm = useForm<Omit<Student, 'id'>>({
     defaultValues: {
       name: '',
+      email: '',
       grade_id: '',
       language_id: '',
       campus_id: '',
-    }
+    },
+    mode: "onBlur"
   });
 
   const editForm = useForm<Student>({
     defaultValues: {
       id: '',
       name: '',
+      email: '',
       grade_id: '',
       language_id: '',
       campus_id: '',
-    }
+    },
+    mode: "onBlur"
   });
 
   const { data: students = [], isLoading } = useQuery({
@@ -252,6 +257,7 @@ const StudentsPage: React.FC = () => {
     editForm.reset({
       id: student.id,
       name: student.name,
+      email: student.email,
       grade_id: student.grade_id || '',
       language_id: student.language_id || '',
       campus_id: student.campus_id || ''
@@ -281,6 +287,7 @@ const StudentsPage: React.FC = () => {
         try {
           const students = results.data.map((row: any) => ({
             name: row.name,
+            email: row.email || "",
             grade_id: row.grade_id || null,
             language_id: row.language_id || null,
             campus_id: row.campus_id || null,
@@ -319,8 +326,8 @@ const StudentsPage: React.FC = () => {
   );
 
   const downloadCsvTemplate = () => {
-    const header = "name,grade_id,language_id,campus_id";
-    const sampleData = "John Doe,grade123,lang456,campus789\nJane Smith,grade234,lang567,campus890";
+    const header = "name,email,grade_id,language_id,campus_id";
+    const sampleData = "John Doe,john@example.com,grade123,lang456,campus789\nJane Smith,jane@example.com,grade234,lang567,campus890";
     const csvContent = `${header}\n${sampleData}`;
     
     const blob = new Blob([csvContent], { type: 'text/csv' });
@@ -421,6 +428,27 @@ const StudentsPage: React.FC = () => {
                         <FormLabel>Name <span className="text-red-500">*</span></FormLabel>
                         <FormControl>
                           <Input {...field} placeholder="John Doe" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={addForm.control}
+                    name="email"
+                    rules={{
+                      required: "Email is required",
+                      pattern: {
+                        value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                        message: "Invalid email format"
+                      }
+                    }}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email <span className="text-red-500">*</span></FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="example@email.com" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -545,6 +573,20 @@ const StudentsPage: React.FC = () => {
                         <FormLabel>Name <span className="text-red-500">*</span></FormLabel>
                         <FormControl>
                           <Input {...field} placeholder="John Doe" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={editForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email <span className="text-red-500">*</span></FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="example@email.com" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -717,6 +759,7 @@ const StudentsPage: React.FC = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
+                    <TableHead>Email</TableHead>
                     <TableHead>Grade</TableHead>
                     <TableHead>Language</TableHead>
                     <TableHead>Campus</TableHead>
@@ -734,6 +777,7 @@ const StudentsPage: React.FC = () => {
                     filteredStudents.map((student) => (
                       <TableRow key={student.id}>
                         <TableCell className="font-medium">{student.name}</TableCell>
+                        <TableCell className="font-medium">{student.email}</TableCell>
                         <TableCell>{gradeMap[student.grade_id!] || '-'}</TableCell>
                         <TableCell>{languageMap[student.language_id!] || '-'}</TableCell>
                         <TableCell>{campusMap[student.campus_id!] || '-'}</TableCell>
