@@ -187,13 +187,21 @@ const StudentsPage: React.FC = () => {
   const updateStudentMutation = useMutation({
     mutationFn: async (updatedStudent: Student) => {
       const { id, ...studentData } = updatedStudent;
+      console.log("🚨 Updating student:", updatedStudent);
+      console.log("📌 Updating ID:", id, typeof id);
+
       const { data, error } = await supabase
         .from('student')
         .update(studentData)
         .eq('id', Number(id))
         .select();
       
-      if (error) throw error;
+      if (error) {
+        console.error("❌ Supabase error:", error);
+        throw error;
+      }
+
+      console.log("✅ Updated student data:", data);
       return data[0];
     },
     onSuccess: () => {
@@ -525,7 +533,7 @@ const StudentsPage: React.FC = () => {
                     control={editForm.control}
                     name="id"
                     render={({ field }) => (
-                      <input type="hidden" {...field} />
+                      <input type="hidden" {...field} value={field.value ?? ''} />
                     )}
                   />
 
