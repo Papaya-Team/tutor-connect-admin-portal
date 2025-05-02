@@ -777,7 +777,7 @@ const StudentsPage: React.FC = () => {
                     filteredStudents.map((student) => (
                       <TableRow key={student.id}>
                         <TableCell className="font-medium">{student.name}</TableCell>
-                        <TableCell className="font-medium">{student.email}</TableCell>
+                        <TableCell>{student.email}</TableCell>
                         <TableCell>{gradeMap[student.grade_id!] || '-'}</TableCell>
                         <TableCell>{languageMap[student.language_id!] || '-'}</TableCell>
                         <TableCell>{campusMap[student.campus_id!] || '-'}</TableCell>
